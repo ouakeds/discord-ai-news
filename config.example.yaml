@@ -1,0 +1,49 @@
+schedule:
+  time: "10:00" # Daily run time in HH:MM (24h, server timezone)
+
+admin:
+  alert_channel_id: "YOUR_ADMIN_CHANNEL_ID" # Discord channel ID for error/health alerts
+
+themes:
+  openai:
+    channel_id: "YOUR_CHANNEL_ID" # Discord channel ID for this theme
+  anthropic:
+    channel_id: "YOUR_CHANNEL_ID"
+  google-ai:
+    channel_id: "YOUR_CHANNEL_ID"
+  outils:
+    channel_id: "YOUR_CHANNEL_ID"
+  youtube:
+    channel_id: "YOUR_CHANNEL_ID"
+  general:
+    channel_id: "YOUR_CHANNEL_ID"
+
+sources:
+  # RSS / Atom source
+  - type: rss
+    url: "https://openai.com/blog/rss.xml"
+    name: "OpenAI Blog"
+    theme: openai
+
+  # YouTube channel (fetched via RSS)
+  - type: youtube
+    channel_id: "CHANNEL_ID_HERE" # Found in the channel's About page URL
+    name: "Shubham Sharma"
+    theme: youtube
+
+  # Reddit subreddit
+  - type: reddit
+    subreddit: "MachineLearning"
+    name: "r/MachineLearning"
+    theme: general
+    min_score: 50 # Optional: minimum post score to include
+
+  # Hacker News — keyword search via Algolia API
+  - type: hn
+    keywords: ["AI", "LLM", "machine learning"]
+    min_score: 100 # Optional: minimum HN score to include
+    theme: general
+
+  # ProductHunt — top AI products via RSS
+  - type: producthunt
+    theme: outils

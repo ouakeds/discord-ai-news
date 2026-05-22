@@ -1,0 +1,16 @@
+node_modules/
+dist/
+data/bot.db
+logs/*.log
+.env
+config.yaml
+
+# macOS
+.DS_Store
+
+# Claude Code local config (machine-specific paths)
+.claude/
+
+# BMad dev tooling
+_bmad/
+_bmad-output/
