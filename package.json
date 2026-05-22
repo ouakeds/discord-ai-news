@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/ouakeds/discord-ai-news#readme",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
     "better-sqlite3": "^12.10.0",
     "discord.js": "^14.26.4",
     "dotenv": "^17.4.2",

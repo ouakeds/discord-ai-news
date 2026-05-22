@@ -1,75 +1,162 @@
-import { Client, EmbedBuilder, TextChannel } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  Client,
+  EmbedBuilder,
+  TextChannel,
+} from 'discord.js';
 import type { AppConfig, CollectedItem } from '../types';
+import { registerArticleUrl } from './button-store';
 import logger from '../utils/logger';
 
-const SOURCE_STYLES: Record<string, { color: number; emoji: string }> = {
-  rss:          { color: 0x5865F2, emoji: '📡' },
-  youtube:      { color: 0xFF0000, emoji: '▶️' },
-  reddit:       { color: 0xFF4500, emoji: '🤖' },
-  hn:           { color: 0xFF6600, emoji: '🔶' },
-  producthunt:  { color: 0xDA552F, emoji: '🐱' },
+// ─── Theme config ─────────────────────────────────────────────────────────────
+
+const THEME_META: Record<string, { color: number; label: string; banner: string }> = {
+  openai:      { color: 0x10A37F, label: 'OpenAI',    banner: '🤖' },
+  anthropic:   { color: 0xC7692A, label: 'Anthropic', banner: '🧠' },
+  'google-ai': { color: 0x4285F4, label: 'Google AI', banner: '🔍' },
+  youtube:     { color: 0xFF0000, label: 'YouTube',   banner: '▶️' },
+  outils:      { color: 0xDA552F, label: 'Outils',    banner: '🛠️' },
+  general:     { color: 0x5865F2, label: 'Général',   banner: '🌐' },
+};
+const DEFAULT_META = { color: 0x99AAB5, label: 'News', banner: '📰' };
+
+const SOURCE_EMOJI: Record<string, string> = {
+  rss:         '📡',
+  youtube:     '▶️',
+  reddit:      '💬',
+  hn:          '🔶',
+  producthunt: '🐱',
 };
 
-const DEFAULT_STYLE = { color: 0x99AAB5, emoji: '📰' };
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function resolveSourceType(sourceName: string): string {
-  const name = sourceName.toLowerCase();
-  if (name === 'hackernews') return 'hn';
-  if (name === 'producthunt') return 'producthunt';
-  if (name.startsWith('r/')) return 'reddit';
+  const n = sourceName.toLowerCase();
+  if (n === 'hackernews') return 'hn';
+  if (n === 'producthunt') return 'producthunt';
+  if (n.startsWith('r/')) return 'reddit';
   return 'rss';
 }
 
 function extractDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace('www.', '');
-  } catch {
-    return url;
-  }
+  try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
 }
 
-function buildArticleEmbed(item: CollectedItem): EmbedBuilder {
-  const sourceType = resolveSourceType(item.sourceName);
-  const style = SOURCE_STYLES[sourceType] ?? DEFAULT_STYLE;
-  const domain = extractDomain(item.url);
-  const dateStr = item.publishedAt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+function formatDate(d: Date): string {
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+// ─── Header & Footer embeds ───────────────────────────────────────────────────
+
+const DIVIDER = '▬'.repeat(28);
+
+function buildHeaderEmbed(count: number, theme: string): EmbedBuilder {
+  const meta = THEME_META[theme] ?? DEFAULT_META;
+  const today = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
+  const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
   return new EmbedBuilder()
-    .setColor(style.color)
-    .setAuthor({ name: `${style.emoji}  ${item.sourceName}` })
-    .setTitle(item.title.substring(0, 256))
-    .setURL(item.url)
-    .setDescription(item.description.length > 0 ? item.description : null)
-    .setFooter({ text: `${domain}  ·  ${dateStr}` });
+    .setColor(meta.color)
+    .setDescription(
+      [
+        DIVIDER,
+        ``,
+        `# 📬  Livraison des news du jour !`,
+        ``,
+        `${meta.banner}  **${meta.label}**`,
+        `🗓️  ${today}  ·  🕙  ${time}`,
+        `📰  **${count} article${count > 1 ? 's' : ''}** sélectionné${count > 1 ? 's' : ''} aujourd'hui`,
+        ``,
+        DIVIDER,
+      ].join('\n')
+    );
 }
 
-function buildToolEmbed(item: CollectedItem): EmbedBuilder {
-  const style = SOURCE_STYLES['producthunt'];
+const FUN_CLOSING = `⚡ C'est fini pour les turbo news, à demain même heure !`;
+
+function buildFooterEmbed(count: number, theme: string): EmbedBuilder {
+  const meta = THEME_META[theme] ?? DEFAULT_META;
+  const closing = FUN_CLOSING;
+
+  return new EmbedBuilder()
+    .setColor(meta.color)
+    .setDescription(
+      [
+        DIVIDER,
+        ``,
+        `✅  **Fin du digest ${meta.banner} ${meta.label}**`,
+        `*${count} article${count > 1 ? 's' : ''} lu${count > 1 ? 's' : ''} · Prochain digest demain à la même heure*`,
+        ``,
+        `> ${closing}`,
+        ``,
+        DIVIDER,
+      ].join('\n')
+    );
+}
+
+// ─── Article embed + button ───────────────────────────────────────────────────
+
+function buildArticlePayload(item: CollectedItem, color: number) {
+  const sourceType = resolveSourceType(item.sourceName);
+  const emoji = SOURCE_EMOJI[sourceType] ?? '📰';
   const domain = extractDomain(item.url);
-  const dateStr = item.publishedAt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const title = (item.titleFr ?? item.title).substring(0, 256);
+  const desc = (item.descriptionFr ?? item.description).substring(0, 350);
+
+  const bodyLines = [
+    `## [${title}](${item.url})`,
+    desc.length > 0 ? `*${desc}*` : '',
+  ].filter(Boolean).join('\n');
 
   const embed = new EmbedBuilder()
-    .setColor(style.color)
-    .setAuthor({ name: `${style.emoji}  ProductHunt` })
-    .setTitle(item.title.substring(0, 256))
-    .setURL(item.url)
-    .setDescription(item.description.length > 0 ? item.description : null)
-    .setFooter({ text: `${domain}  ·  ${dateStr}` });
+    .setColor(color)
+    .setAuthor({ name: `${emoji}  ${item.sourceName}` })
+    .setDescription(bodyLines)
+    .setFooter({ text: `${domain}  ·  ${formatDate(item.publishedAt)}` });
 
   if (item.imageUrl) embed.setImage(item.imageUrl);
 
-  return embed;
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(registerArticleUrl(item.url))
+      .setLabel('Lire la news')
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  return { embeds: [embed], components: [row] };
 }
 
-function buildHeaderEmbed(count: number, theme: string): EmbedBuilder {
-  const date = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  return new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle(`📰  Digest IA — ${theme}`)
-    .setDescription(`**${count} article${count > 1 ? 's' : ''}** · ${date}`);
+// ─── ProductHunt tool payload ─────────────────────────────────────────────────
+
+function buildToolPayload(item: CollectedItem, color: number) {
+  const title = (item.titleFr ?? item.title).substring(0, 256);
+  const desc = (item.descriptionFr ?? item.description).substring(0, 350);
+  const domain = extractDomain(item.url);
+
+  const embed = new EmbedBuilder()
+    .setColor(color)
+    .setAuthor({ name: `🐱  ProductHunt` })
+    .setTitle(title)
+    .setFooter({ text: `${domain}  ·  ${formatDate(item.publishedAt)}` });
+
+  if (desc.length > 0) embed.setDescription(`*${desc}*`);
+  if (item.imageUrl)   embed.setImage(item.imageUrl);
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(registerArticleUrl(item.url))
+      .setLabel('Lire la news')
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  return { embeds: [embed], components: [row] };
 }
 
-const DISCORD_EMBEDS_PER_MESSAGE = 10;
+// ─── Main export ──────────────────────────────────────────────────────────────
 
 export async function publishDigest(
   items: CollectedItem[],
@@ -91,8 +178,8 @@ export async function publishDigest(
       continue;
     }
 
+    const meta = THEME_META[theme] ?? DEFAULT_META;
     const channel = client.channels.cache.get(themeConfig.channel_id) as TextChannel | undefined;
-
     if (!channel) {
       logger.error({ source: 'discord-publisher', channel_id: themeConfig.channel_id }, 'Channel not found');
       continue;
@@ -102,19 +189,17 @@ export async function publishDigest(
       await channel.send({ embeds: [buildHeaderEmbed(themeItems.length, theme)] });
 
       const isToolTheme = themeItems.some((i) => i.sourceName === 'ProductHunt');
+      const payloads = isToolTheme
+        ? themeItems.map((i) => buildToolPayload(i, meta.color))
+        : themeItems.map((i) => buildArticlePayload(i, meta.color));
 
-      if (isToolTheme) {
-        for (const item of themeItems) {
-          await channel.send({ embeds: [buildToolEmbed(item)] });
-        }
-      } else {
-        const articleEmbeds = themeItems.map(buildArticleEmbed);
-        for (let i = 0; i < articleEmbeds.length; i += DISCORD_EMBEDS_PER_MESSAGE) {
-          await channel.send({ embeds: articleEmbeds.slice(i, i + DISCORD_EMBEDS_PER_MESSAGE) });
-        }
+      for (const payload of payloads) {
+        await channel.send(payload);
       }
+
+      await channel.send({ embeds: [buildFooterEmbed(themeItems.length, theme)] });
     } catch (err) {
-      logger.error({ source: 'discord-publisher', channel: themeConfig.channel, err }, 'Publish failed');
+      logger.error({ source: 'discord-publisher', channel_id: themeConfig.channel_id, err }, 'Publish failed');
     }
   }
 }

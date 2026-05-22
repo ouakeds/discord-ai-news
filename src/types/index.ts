@@ -2,6 +2,8 @@ export interface CollectedItem {
   url: string;
   title: string;
   description: string;
+  titleFr?: string;
+  descriptionFr?: string;
   sourceName: string;
   theme: string;
   publishedAt: Date;

@@ -19,11 +19,78 @@ themes:
     channel_id: "YOUR_CHANNEL_ID"
 
 sources:
-  # RSS / Atom source
+  # ── OpenAI ──────────────────────────────────────────────────────────────────
   - type: rss
     url: "https://openai.com/blog/rss.xml"
     name: "OpenAI Blog"
     theme: openai
+
+  - type: hn
+    keywords: ["OpenAI", "ChatGPT", "GPT", "Sora", "DALL-E", "Whisper", "OpenAI API", "OpenAI Realtime", "OpenAI Assistants", "OpenAI reasoning"]
+    min_score: 50
+    theme: openai
+
+  - type: reddit
+    subreddit: "ChatGPT"
+    name: "r/ChatGPT"
+    theme: openai
+    min_score: 100
+
+  # ── Anthropic ────────────────────────────────────────────────────────────────
+  # Anthropic n'expose pas de flux RSS officiel
+  - type: hn
+    keywords: ["Anthropic", "Claude", "Claude API", "MCP", "Model Context Protocol", "Constitutional AI", "Claude computer use"]
+    min_score: 50
+    theme: anthropic
+
+  - type: reddit
+    subreddit: "ClaudeAI"
+    name: "r/ClaudeAI"
+    theme: anthropic
+    min_score: 50
+
+  - type: reddit
+    subreddit: "Anthropic"
+    name: "r/Anthropic"
+    theme: anthropic
+    min_score: 20
+
+  # ── Google AI — orienté développeurs ─────────────────────────────────────────
+  - type: rss
+    url: "https://developers.googleblog.com/feeds/posts/default"
+    name: "Google Developers Blog"
+    theme: google-ai
+
+  - type: rss
+    url: "https://cloudblog.withgoogle.com/products/ai-machine-learning/rss/"
+    name: "Google Cloud AI Blog"
+    theme: google-ai
+
+  - type: rss
+    url: "https://blog.google/products/gemini/rss/"
+    name: "Google Gemini Blog"
+    theme: google-ai
+
+  - type: rss
+    url: "https://deepmind.google/blog/rss.xml"
+    name: "Google DeepMind Blog"
+    theme: google-ai
+
+  - type: rss
+    url: "http://feeds.feedburner.com/blogspot/gJZg"
+    name: "Google Research Blog"
+    theme: google-ai
+
+  - type: hn
+    keywords: ["Gemini", "Google AI", "Vertex AI", "Google DeepMind", "Gemma", "NotebookLM", "Google AI Studio", "Veo", "Imagen", "Google ADK", "Project Astra"]
+    min_score: 50
+    theme: google-ai
+
+  - type: reddit
+    subreddit: "Bard"
+    name: "r/Bard"
+    theme: google-ai
+    min_score: 30
 
   # YouTube channel (fetched via RSS)
   - type: youtube

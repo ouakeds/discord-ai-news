@@ -14,3 +14,5 @@ config.yaml
 # BMad dev tooling
 _bmad/
 _bmad-output/
+
+.playwright-mcp/

@@ -8,6 +8,7 @@ import { collect as collectReddit } from '../collectors/reddit-collector';
 import { collect as collectHn } from '../collectors/hn-collector';
 import { collect as collectPh } from '../collectors/producthunt-collector';
 import { publishDigest } from './discord-publisher';
+import { enrich } from './enricher';
 import logger from '../utils/logger';
 
 interface CycleLock {
@@ -41,7 +42,8 @@ export async function runCycle(config: AppConfig, client: Client): Promise<numbe
 
     logger.info({ source: 'cycle-runner', collected: allItems.length, new: newItems.length }, 'Cycle items');
 
-    await publishDigest(newItems, config, client);
+    const enrichedItems = await enrich(newItems);
+    await publishDigest(enrichedItems, config, client);
 
     for (const item of newItems) {
       markAsPublished(item.url);
